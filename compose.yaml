@@ -1,7 +1,6 @@
 services:
   deeplx:
-    build: .
-    image: dlx-local:latest
+    image: ghcr.io/fengwm64/deeplx:latest
     restart: always
     ports:
       - "1188:1188"

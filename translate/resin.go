@@ -83,8 +83,7 @@ type proxyManager struct {
 	baseURL     string
 	stickyURL   string
 	apiBase     string
-	apiUser     string
-	apiPassword string
+	adminToken  string
 	platform    string
 	account     string
 	ipCheckURL  string
@@ -130,20 +129,6 @@ func newProxyManager(proxyURL string) (*proxyManager, error) {
 		account = "dlx"
 	}
 	password := ""
-	apiUser := platform
-	if u.User != nil {
-		if _, ok := u.User.Password(); ok {
-			password, _ = u.User.Password()
-		}
-	}
-	if configured := os.Getenv("RESIN_API_USER"); configured != "" {
-		apiUser = configured
-	}
-	apiPassword := os.Getenv("RESIN_API_PASSWORD")
-	if apiPassword == "" {
-		apiPassword = password
-	}
-
 	sticky := *u
 	sticky.User = url.UserPassword(platform+"."+account, password)
 
@@ -187,8 +172,7 @@ func newProxyManager(proxyURL string) (*proxyManager, error) {
 		baseURL:     proxyURL,
 		stickyURL:   sticky.String(),
 		apiBase:     apiBase,
-		apiUser:     apiUser,
-		apiPassword: apiPassword,
+		adminToken:  os.Getenv("RESIN_ADMIN_TOKEN"),
 		platform:    platform,
 		account:     account,
 		ipCheckURL:  envOrDefault("IPCHECK_URL", defaultIPCheckURL),
@@ -251,8 +235,8 @@ func (m *proxyManager) releaseLease(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if m.apiUser != "" {
-		request.SetBasicAuth(m.apiUser, m.apiPassword)
+	if m.adminToken != "" {
+		request.Header.Set("Authorization", "Bearer "+m.adminToken)
 	}
 	// The lease API is the proxy provider's control plane. It must be reached
 	// directly; service.Router configures http.DefaultTransport for upstream
