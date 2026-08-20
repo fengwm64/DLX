@@ -444,7 +444,7 @@ func callOneshot(endpoint string, body []byte, bearerToken, proxyURL string) (gj
 }
 
 func shouldRotate(status int, requestErr error) bool {
-	if status == http.StatusTooManyRequests || status == http.StatusForbidden {
+	if status == 0 || status == http.StatusTooManyRequests || status == http.StatusForbidden {
 		return true
 	}
 	if requestErr != nil {
