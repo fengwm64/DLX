@@ -230,26 +230,57 @@ func (m *proxyManager) currentIP(_ *req.Client) (string, error) {
 	request.Header.Set("User-Agent", "Mozilla/5.0")
 	response, err := client.Do(request)
 	if err != nil {
-		return "", err
+		return m.leaseIP(err)
 	}
 	defer response.Body.Close()
 	raw, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", err
+		return m.leaseIP(err)
 	}
+	if ip := parseIP(raw); ip != "" {
+		return ip, nil
+	}
+	return m.leaseIP(fmt.Errorf("IP check returned an empty address"))
+}
+
+func parseIP(raw []byte) string {
 	var payload struct {
 		IP string `json:"ip"`
 	}
 	if json.Unmarshal(raw, &payload) == nil && strings.TrimSpace(payload.IP) != "" {
-		return strings.TrimSpace(payload.IP), nil
+		return strings.TrimSpace(payload.IP)
 	}
 	if ip := strings.TrimSpace(gjson.ParseBytes(raw).Get("ip").String()); ip != "" {
-		return ip, nil
+		return ip
 	}
-	if ip := strings.TrimSpace(string(raw)); ip != "" {
-		return ip, nil
+	return ""
+}
+
+func (m *proxyManager) leaseIP(checkErr error) (string, error) {
+	if m.adminToken == "" {
+		return "", checkErr
 	}
-	return "", fmt.Errorf("IP check returned an empty address")
+	endpoint := fmt.Sprintf("%s/api/v1/platforms/%s/leases/%s", strings.TrimRight(m.apiBase, "/"), url.PathEscape(m.platform), url.PathEscape(m.account))
+	request, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return "", checkErr
+	}
+	request.Header.Set("Authorization", "Bearer "+m.adminToken)
+	response, err := (&http.Client{Timeout: 10 * time.Second}).Do(request)
+	if err != nil {
+		return "", checkErr
+	}
+	defer response.Body.Close()
+	raw, err := io.ReadAll(response.Body)
+	if err == nil {
+		var lease struct {
+			EgressIP string `json:"egress_ip"`
+		}
+		if json.Unmarshal(raw, &lease) == nil && strings.TrimSpace(lease.EgressIP) != "" {
+			return strings.TrimSpace(lease.EgressIP), nil
+		}
+	}
+	return "", checkErr
 }
 
 func (m *proxyManager) releaseLease(ctx context.Context) error {
