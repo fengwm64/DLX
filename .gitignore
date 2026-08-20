@@ -3,3 +3,4 @@ dlx
 
 # macOS Finder metadata
 .DS_Store
+.env

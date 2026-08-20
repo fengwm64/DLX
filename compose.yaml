@@ -1,9 +1,12 @@
 services:
   deeplx:
-    image: ghcr.io/owo-network/deeplx:latest
+    build: .
+    image: dlx-local:latest
     restart: always
     ports:
       - "1188:1188"
-    # environment:
+    environment:
+      - PROXY=${PROXY:?set PROXY in .env}
+      - RESIN_ACCOUNT=${RESIN_ACCOUNT:-dlx}
       # - TOKEN=helloworld
       # - DL_SESSION=xxxxxx

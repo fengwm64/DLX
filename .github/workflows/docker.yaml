@@ -3,18 +3,16 @@ name: Docker Image CI
 on:
   push:
     branches:
-      - dev
-    tags:
-      - 'v*'
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 env:
   # Keep historical package names (deeplx); only the GitHub repo was renamed to DLX.
-  DOCKER_IMAGE_NAME: missuo/deeplx
-  GHCR_IMAGE_NAME: owo-network/deeplx
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-  GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  GHCR_USERNAME: ${{ github.repository_owner }}
+  GHCR_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/deeplx
 
 jobs:
   docker_build:
@@ -22,51 +20,39 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
       - name: Set up docker buildx
         id: buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          version: latest
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          registry: docker.io
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_PASSWORD }}
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ env.GHCR_USERNAME }}
-          password: ${{ env.GHCR_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           # list of Docker images to use as base name for tags
-          images: |
-            docker.io/${{ env.DOCKER_IMAGE_NAME }}
-            ghcr.io/${{ env.GHCR_IMAGE_NAME }}
+          images: ${{ env.GHCR_IMAGE_NAME }}
           # generate Docker tags based on the following events/attributes
           tags: |
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=pep440,pattern={{raw}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=raw,value=latest
+            type=sha
 
       - name: Build and push
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64

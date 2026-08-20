@@ -339,16 +339,9 @@ func iosUserAgent() string {
 	)
 }
 
-// callOneshot POSTs to the oneshot endpoint and returns the parsed JSON.
-// For anonymous traffic bearerToken is empty and we send the literal
-// header `Authorization: None` — matching ItaClient.LoginNone. Omitting
-// that header puts the request on a different server-side auth branch.
-func callOneshot(endpoint string, body []byte, bearerToken, proxyURL string) (gjson.Result, int, error) {
-	client, err := getOneshotClient(proxyURL)
-	if err != nil {
-		return gjson.Result{}, 0, err
-	}
-
+// postOneshot sends one request and returns the parsed response. Keeping this
+// separate lets the Resin manager replace the client only after a 429.
+func postOneshot(client *req.Client, endpoint string, body []byte, bearerToken string) (gjson.Result, int, error) {
 	// LoginNone → literal "None"; LoginPro/Free → "Bearer <access_token>".
 	authValue := "None"
 	if bearerToken != "" {
@@ -394,6 +387,60 @@ func callOneshot(endpoint string, body []byte, bearerToken, proxyURL string) (gj
 		return gjson.Result{}, resp.StatusCode, fmt.Errorf("read response body: %w", err)
 	}
 	return gjson.ParseBytes(raw), resp.StatusCode, nil
+}
+
+// callOneshot POSTs to the oneshot endpoint and returns the parsed JSON.
+// For anonymous traffic bearerToken is empty and we send the literal
+// header `Authorization: None` — matching ItaClient.LoginNone. When a Resin
+// proxy is configured, only 429 responses trigger a lease release and a new
+// sticky connection; ordinary requests keep the connection-pool fast path.
+func callOneshot(endpoint string, body []byte, bearerToken, proxyURL string) (gjson.Result, int, error) {
+	manager, err := getProxyManager(proxyURL)
+	if err != nil {
+		return gjson.Result{}, 0, err
+	}
+
+	var client *req.Client
+	if manager != nil {
+		client, err = manager.currentClient()
+	} else {
+		client, err = getOneshotClient(proxyURL)
+	}
+	if err != nil {
+		return gjson.Result{}, 0, err
+	}
+
+	rotations := 0
+	for {
+		result, status, requestErr := postOneshot(client, endpoint, body, bearerToken)
+		if requestErr != nil || status != http.StatusTooManyRequests || manager == nil {
+			return result, status, requestErr
+		}
+		if rotations >= manager.maxRetries {
+			return result, status, nil
+		}
+
+		// Skip blacklisted replacement IPs without sending a DeepL request.
+		available := false
+		for {
+			rotations++
+			var newIP string
+			client, newIP, err = manager.rotate()
+			if err != nil {
+				return result, status, nil
+			}
+			if !manager.isBlocked(newIP) {
+				available = true
+				break
+			}
+			if rotations >= manager.maxRetries {
+				break
+			}
+		}
+		if !available {
+			return result, status, nil
+		}
+	}
 }
 
 // TranslateByDLX performs translation via the DeepL oneshot endpoint.

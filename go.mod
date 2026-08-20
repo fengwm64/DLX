@@ -7,6 +7,7 @@ require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
 	github.com/imroc/req/v3 v3.60.0
+	github.com/redis/go-redis/v9 v9.7.0
 	github.com/tidwall/gjson v1.19.0
 )
 
