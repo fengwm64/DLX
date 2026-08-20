@@ -134,6 +134,11 @@ func newProxyManager(proxyURL string) (*proxyManager, error) {
 		account = "dlx"
 	}
 	password := ""
+	if u.User != nil {
+		// Resin uses the password from the provider URL for proxy
+		// authentication; only the username changes for sticky leases.
+		password, _ = u.User.Password()
+	}
 	sticky := *u
 	sticky.User = url.UserPassword(stickyPrefix+"."+account, password)
 
