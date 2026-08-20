@@ -210,8 +210,19 @@ func (m *proxyManager) currentClient() (*req.Client, error) {
 	return client, nil
 }
 
-func (m *proxyManager) currentIP(client *req.Client) (string, error) {
-	response, err := client.R().SetHeader("Accept", "application/json").Get(m.ipCheckURL)
+func (m *proxyManager) currentIP(_ *req.Client) (string, error) {
+	proxy, err := url.Parse(m.stickyURL)
+	if err != nil {
+		return "", err
+	}
+	// The IP checker may reject the iOS TLS/User-Agent profile used for
+	// DeepL. Use a plain HTTP client for identification only; translation
+	// requests continue to use the iOS-shaped req client.
+	client := &http.Client{
+		Transport: &http.Transport{Proxy: http.ProxyURL(proxy)},
+		Timeout:   10 * time.Second,
+	}
+	response, err := client.Get(m.ipCheckURL)
 	if err != nil {
 		return "", err
 	}
