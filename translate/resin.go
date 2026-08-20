@@ -279,7 +279,12 @@ func (m *proxyManager) rotate() (*req.Client, string, error) {
 		_ = m.blacklist.Add(context.Background(), oldIP, m.cooldown)
 	}
 	if err := m.releaseLease(context.Background()); err != nil {
-		return nil, "", err
+		// A proxy CONNECT can be rejected before Resin creates a lease.
+		// In that case there is nothing to release; continue by creating a
+		// fresh client so the sticky account can acquire a new exit.
+		if !strings.Contains(err.Error(), "HTTP 404") {
+			return nil, "", err
+		}
 	}
 
 	newClient, err := newOneshotClient(m.stickyURL)
