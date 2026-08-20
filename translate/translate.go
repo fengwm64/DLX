@@ -427,7 +427,7 @@ func callOneshot(endpoint string, body []byte, bearerToken, proxyURL string) (gj
 			var newIP string
 			client, newIP, err = manager.rotate()
 			if err != nil {
-				return result, status, nil
+				return result, status, fmt.Errorf("Resin IP rotation failed: %w", err)
 			}
 			if !manager.isBlocked(newIP) {
 				available = true
