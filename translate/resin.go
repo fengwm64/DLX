@@ -20,7 +20,7 @@ import (
 
 const (
 	defaultIPCheckURL = "https://ipcheck.102465.xyz/"
-	defaultResinPlatform = "DLX"
+	defaultResinPlatform = "7d9e1c7b-00a2-47f6-a858-d59a1111269b"
 	defaultCooldown       = 30 * time.Minute
 	defaultMaxRetries     = 3
 )
@@ -85,6 +85,7 @@ type proxyManager struct {
 	apiBase     string
 	adminToken  string
 	platform    string
+	stickyPrefix string
 	account     string
 	ipCheckURL  string
 	cooldown    time.Duration
@@ -127,13 +128,14 @@ func newProxyManager(proxyURL string) (*proxyManager, error) {
 	}
 
 	platform := envOrDefault("RESIN_PLATFORM_ID", defaultResinPlatform)
+	stickyPrefix := envOrDefault("RESIN_STICKY_PREFIX", "DLX")
 	account := os.Getenv("RESIN_ACCOUNT")
 	if account == "" {
 		account = "dlx"
 	}
 	password := ""
 	sticky := *u
-	sticky.User = url.UserPassword(platform+"."+account, password)
+	sticky.User = url.UserPassword(stickyPrefix+"."+account, password)
 
 	apiBase := os.Getenv("RESIN_API_BASE")
 	if apiBase == "" {
@@ -177,6 +179,7 @@ func newProxyManager(proxyURL string) (*proxyManager, error) {
 		apiBase:     apiBase,
 		adminToken:  os.Getenv("RESIN_ADMIN_TOKEN"),
 		platform:    platform,
+		stickyPrefix: stickyPrefix,
 		account:     account,
 		ipCheckURL:  envOrDefault("IPCHECK_URL", defaultIPCheckURL),
 		cooldown:    ttl,
