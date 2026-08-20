@@ -122,6 +122,9 @@ func newProxyManager(proxyURL string) (*proxyManager, error) {
 	if u.Host == "" {
 		return nil, fmt.Errorf("invalid proxy URL: host is required")
 	}
+	if internalHost := os.Getenv("RESIN_PROXY_HOST"); internalHost != "" {
+		u.Host = internalHost
+	}
 
 	platform := envOrDefault("RESIN_PLATFORM_ID", defaultResinPlatform)
 	account := os.Getenv("RESIN_ACCOUNT")

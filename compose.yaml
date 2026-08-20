@@ -7,5 +7,14 @@ services:
     environment:
       - PROXY=${PROXY:?set PROXY in .env}
       - RESIN_ACCOUNT=${RESIN_ACCOUNT:-dlx}
+      - RESIN_PROXY_HOST=${RESIN_PROXY_HOST:-resin:2260}
+      - RESIN_ADMIN_TOKEN=${RESIN_ADMIN_TOKEN:?set RESIN_ADMIN_TOKEN in .env}
       # - TOKEN=helloworld
       # - DL_SESSION=xxxxxx
+    networks:
+      - default
+      - resin_default
+
+networks:
+  resin_default:
+    external: true
