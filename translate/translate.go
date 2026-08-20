@@ -413,7 +413,7 @@ func callOneshot(endpoint string, body []byte, bearerToken, proxyURL string) (gj
 	rotations := 0
 	for {
 		result, status, requestErr := postOneshot(client, endpoint, body, bearerToken)
-		if requestErr != nil || status != http.StatusTooManyRequests || manager == nil {
+		if manager == nil || !shouldRotate(status, requestErr) {
 			return result, status, requestErr
 		}
 		if rotations >= manager.maxRetries {
@@ -441,6 +441,16 @@ func callOneshot(endpoint string, body []byte, bearerToken, proxyURL string) (gj
 			return result, status, nil
 		}
 	}
+}
+
+func shouldRotate(status int, requestErr error) bool {
+	if status == http.StatusTooManyRequests || status == http.StatusForbidden {
+		return true
+	}
+	if requestErr != nil {
+		return strings.Contains(strings.ToLower(requestErr.Error()), "forbidden")
+	}
+	return false
 }
 
 // TranslateByDLX performs translation via the DeepL oneshot endpoint.
