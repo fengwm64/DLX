@@ -74,7 +74,8 @@ func (b *redisBlacklist) Add(ctx context.Context, ip string, ttl time.Duration) 
 }
 
 func (b *redisBlacklist) Has(ctx context.Context, ip string) (bool, error) {
-	return b.client.Exists(ctx, b.key(ip)).Val() == 1, b.client.Err()
+	result := b.client.Exists(ctx, b.key(ip))
+	return result.Val() == 1, result.Err()
 }
 
 type proxyManager struct {
