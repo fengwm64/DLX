@@ -222,7 +222,13 @@ func (m *proxyManager) currentIP(_ *req.Client) (string, error) {
 		Transport: &http.Transport{Proxy: http.ProxyURL(proxy)},
 		Timeout:   10 * time.Second,
 	}
-	response, err := client.Get(m.ipCheckURL)
+	request, err := http.NewRequest(http.MethodGet, m.ipCheckURL, nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("User-Agent", "Mozilla/5.0")
+	response, err := client.Do(request)
 	if err != nil {
 		return "", err
 	}
