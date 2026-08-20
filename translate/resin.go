@@ -343,7 +343,10 @@ func (m *proxyManager) rotate() (*req.Client, string, error) {
 	go warmCookies(newClient)
 	newIP, err := m.currentIP(newClient)
 	if err != nil {
-		return newClient, "", err
+		// Rotation is still useful even when the checker cannot identify the
+		// new IP. Continue with the fresh client; blacklist only when an IP
+		// can be established.
+		return newClient, "", nil
 	}
 	m.ip = newIP
 	return newClient, newIP, nil
